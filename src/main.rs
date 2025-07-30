@@ -61,7 +61,7 @@ struct SshServer {
 impl SshServer {
     async fn broadcast(&self, msg: &str) {
         let mut clients = self.clients.lock().await;
-        let data = CryptoVec::from(format!("{}\r\n", msg));
+        let data = CryptoVec::from(format!("\r\n{}\r\n> ", msg));
         for (_, (_, channel, handle)) in clients.iter_mut() {
             let _ = handle.data(*channel, data.clone()).await;
         }
@@ -122,6 +122,13 @@ impl server::Handler for SshServer {
             );
         }
 
+        // Simple TUI welcome screen
+        session.data(channel.id(), CryptoVec::from("\x1b[2J\x1b[H"))?;
+        if let Some(name) = &self.username {
+            let welcome = format!("Welcome, {}! Type /help for commands.\r\n", name);
+            session.data(channel.id(), CryptoVec::from(welcome))?;
+        }
+
         // Send chat history
         if let Some(name) = &self.username {
             let history = {
@@ -150,6 +157,7 @@ impl server::Handler for SshServer {
 
             let join_msg = format!("* {} joined", name);
             self.broadcast(&join_msg).await;
+            session.data(channel.id(), CryptoVec::from("> "))?;
         }
         Ok(true)
     }
@@ -166,6 +174,18 @@ impl server::Handler for SshServer {
         let msg = String::from_utf8_lossy(data).trim().to_string();
         if msg.is_empty() {
             return Ok(());
+        }
+        if msg == "/help" {
+            let help = "Commands:\n/help - this help\n/quit - exit chat\n";
+            let clients = self.clients.lock().await;
+            if let Some((_, channel, handle)) = clients.get(&self.id) {
+                let _ = handle.data(*channel, CryptoVec::from(help)).await;
+                let _ = handle.data(*channel, CryptoVec::from("> ")).await;
+            }
+            return Ok(());
+        }
+        if msg == "/quit" {
+            return Err(russh::Error::Disconnect);
         }
         if let Some(name) = &self.username {
             {
@@ -192,6 +212,14 @@ impl server::Handler for SshServer {
         session: &mut Session,
     ) -> Result<(), Self::Error> {
         session.close(channel)?;
+        {
+            let mut clients = self.clients.lock().await;
+            clients.remove(&self.id);
+        }
+        if let Some(name) = &self.username {
+            let leave = format!("* {} left", name);
+            self.broadcast(&leave).await;
+        }
         Ok(())
     }
 }
