@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>{% block title %}NoJS Chat{% endblock %}</title>
+<title>{% block title %}{{ chat_name }}{% endblock %}</title>
 <style>
 body { font-family: sans-serif; max-width: 800px; margin: auto; background: #111; color: #eee; }
 a { color: #8cf; }
@@ -14,7 +14,7 @@ button { padding: 0.5em 1em; }
 </style>
 </head>
 <body>
-<header><h1>NoJS Chat</h1></header>
+<header><h1>{{ chat_name }}</h1></header>
 {% block content %}{% endblock %}
 </body>
 </html>

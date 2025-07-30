@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Chat - NoJS Chat{% endblock %}
+{% block title %}Chat - {{ chat_name }}{% endblock %}
 {% block content %}
 <form method="post" action="/message">
   <input type="text" name="content" placeholder="Type a message" required>
