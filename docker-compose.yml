@@ -1,0 +1,10 @@
+version: '3'
+services:
+  chat:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - tor-data:/var/lib/tor/nojschat
+volumes:
+  tor-data:

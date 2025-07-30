@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}NoJS Chat{% endblock %}</title>
+<style>
+body { font-family: sans-serif; max-width: 800px; margin: auto; background: #111; color: #eee; }
+a { color: #8cf; }
+header { padding: 1em 0; text-align: center; }
+form { margin-bottom: 1em; }
+input[type=text], input[type=password] { width: 100%; padding: 0.5em; margin: 0.2em 0; }
+button { padding: 0.5em 1em; }
+.message { border-bottom: 1px solid #444; padding: 0.5em 0; }
+</style>
+</head>
+<body>
+<header><h1>NoJS Chat</h1></header>
+{% block content %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% block title %}Chat - NoJS Chat{% endblock %}
+{% block content %}
+<form method="post" action="/message">
+  <input type="text" name="content" placeholder="Type a message" required>
+  <button type="submit">Post</button>
+</form>
+<div>
+{% for m in messages %}
+  <div class="message"><strong>{{ m.username }}</strong>: {{ m.content }}</div>
+{% endfor %}
+</div>
+<a href="/logout">Logout</a>
+{% endblock %}
