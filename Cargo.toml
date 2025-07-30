@@ -1,0 +1,10 @@
+[package]
+name = "nojs-chat"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+askama = "0.12"
+rusqlite = { version = "0.28", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
