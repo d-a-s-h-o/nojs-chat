@@ -1,6 +1,7 @@
 use actix_web::cookie::{time::Duration, Cookie};
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use askama::Template;
+use clap::Parser;
 use rusqlite::{params, Connection};
 use russh::server::{Auth, Msg, Server as _, Session};
 use russh::{server, Channel, ChannelId, CryptoVec};
@@ -26,6 +27,26 @@ impl Default for Config {
             chat_name: "NoJS Chat".to_string(),
         }
     }
+}
+
+#[derive(Parser)]
+#[command(name = "nojs-chat", about = "Minimal chat server over HTTP and SSH")]
+struct Args {
+    /// HTTP port
+    #[arg(short = 'p', long = "port")]
+    http_port: Option<u16>,
+
+    /// SSH port
+    #[arg(short = 's', long = "ssh")]
+    ssh_port: Option<u16>,
+
+    /// Chat name
+    #[arg(short = 'n', long = "name")]
+    chat_name: Option<String>,
+
+    /// Path to config file
+    #[arg(short = 'c', long = "config", default_value = "config.yml")]
+    config: String,
 }
 
 struct AppState {
@@ -244,10 +265,27 @@ struct MessageForm {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let config: Config = std::fs::read_to_string("config.yml")
+    let args = Args::parse();
+
+    let mut config: Config = std::fs::read_to_string(&args.config)
         .ok()
         .and_then(|c| serde_yaml::from_str(&c).ok())
         .unwrap_or_default();
+
+    if let Some(p) = args.http_port {
+        config.http_port = p;
+    }
+    if let Some(p) = args.ssh_port {
+        config.ssh_port = p;
+    }
+    if let Some(n) = args.chat_name {
+        config.chat_name = n;
+    }
+
+    println!(
+        "Starting {} on http port {} and ssh port {}",
+        config.chat_name, config.http_port, config.ssh_port
+    );
 
     let conn = Connection::open("chat.db").expect("open db");
     conn.execute(
