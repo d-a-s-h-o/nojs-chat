@@ -1,6 +1,7 @@
 use actix_web::cookie::{time::Duration, Cookie};
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use askama::Template;
+use clap::Parser;
 use rusqlite::{params, Connection};
 use russh::server::{Auth, Msg, Server as _, Session};
 use russh::{server, Channel, ChannelId, CryptoVec};
@@ -26,6 +27,26 @@ impl Default for Config {
             chat_name: "NoJS Chat".to_string(),
         }
     }
+}
+
+#[derive(Parser)]
+#[command(name = "nojs-chat", about = "Minimal chat server over HTTP and SSH")]
+struct Args {
+    /// HTTP port
+    #[arg(short = 'p', long = "port")]
+    http_port: Option<u16>,
+
+    /// SSH port
+    #[arg(short = 's', long = "ssh")]
+    ssh_port: Option<u16>,
+
+    /// Chat name
+    #[arg(short = 'n', long = "name")]
+    chat_name: Option<String>,
+
+    /// Path to config file
+    #[arg(short = 'c', long = "config", default_value = "config.yml")]
+    config: String,
 }
 
 struct AppState {
@@ -61,7 +82,7 @@ struct SshServer {
 impl SshServer {
     async fn broadcast(&self, msg: &str) {
         let mut clients = self.clients.lock().await;
-        let data = CryptoVec::from(format!("{}\r\n", msg));
+        let data = CryptoVec::from(format!("\r\n{}\r\n> ", msg));
         for (_, (_, channel, handle)) in clients.iter_mut() {
             let _ = handle.data(*channel, data.clone()).await;
         }
@@ -122,6 +143,13 @@ impl server::Handler for SshServer {
             );
         }
 
+        // Simple TUI welcome screen
+        session.data(channel.id(), CryptoVec::from("\x1b[2J\x1b[H"))?;
+        if let Some(name) = &self.username {
+            let welcome = format!("Welcome, {}! Type /help for commands.\r\n", name);
+            session.data(channel.id(), CryptoVec::from(welcome))?;
+        }
+
         // Send chat history
         if let Some(name) = &self.username {
             let history = {
@@ -150,6 +178,7 @@ impl server::Handler for SshServer {
 
             let join_msg = format!("* {} joined", name);
             self.broadcast(&join_msg).await;
+            session.data(channel.id(), CryptoVec::from("> "))?;
         }
         Ok(true)
     }
@@ -166,6 +195,18 @@ impl server::Handler for SshServer {
         let msg = String::from_utf8_lossy(data).trim().to_string();
         if msg.is_empty() {
             return Ok(());
+        }
+        if msg == "/help" {
+            let help = "Commands:\n/help - this help\n/quit - exit chat\n";
+            let clients = self.clients.lock().await;
+            if let Some((_, channel, handle)) = clients.get(&self.id) {
+                let _ = handle.data(*channel, CryptoVec::from(help)).await;
+                let _ = handle.data(*channel, CryptoVec::from("> ")).await;
+            }
+            return Ok(());
+        }
+        if msg == "/quit" {
+            return Err(russh::Error::Disconnect);
         }
         if let Some(name) = &self.username {
             {
@@ -192,6 +233,14 @@ impl server::Handler for SshServer {
         session: &mut Session,
     ) -> Result<(), Self::Error> {
         session.close(channel)?;
+        {
+            let mut clients = self.clients.lock().await;
+            clients.remove(&self.id);
+        }
+        if let Some(name) = &self.username {
+            let leave = format!("* {} left", name);
+            self.broadcast(&leave).await;
+        }
         Ok(())
     }
 }
@@ -216,10 +265,27 @@ struct MessageForm {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let config: Config = std::fs::read_to_string("config.yml")
+    let args = Args::parse();
+
+    let mut config: Config = std::fs::read_to_string(&args.config)
         .ok()
         .and_then(|c| serde_yaml::from_str(&c).ok())
         .unwrap_or_default();
+
+    if let Some(p) = args.http_port {
+        config.http_port = p;
+    }
+    if let Some(p) = args.ssh_port {
+        config.ssh_port = p;
+    }
+    if let Some(n) = args.chat_name {
+        config.chat_name = n;
+    }
+
+    println!(
+        "Starting {} on http port {} and ssh port {}",
+        config.chat_name, config.http_port, config.ssh_port
+    );
 
     let conn = Connection::open("chat.db").expect("open db");
     conn.execute(
