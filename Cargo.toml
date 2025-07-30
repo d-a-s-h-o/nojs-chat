@@ -8,3 +8,7 @@ actix-web = "4"
 askama = "0.12"
 rusqlite = { version = "0.28", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["macros", "rt", "sync", "time", "net"] }
+russh = "0.53"
+rand_core = "0.6"

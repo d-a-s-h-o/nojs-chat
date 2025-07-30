@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Login - NoJS Chat{% endblock %}
+{% block title %}Login - {{ chat_name }}{% endblock %}
 {% block content %}
 <form method="post" action="/login">
   <input type="text" name="username" placeholder="Username" required>
