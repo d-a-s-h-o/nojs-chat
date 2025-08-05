@@ -10,6 +10,6 @@ rusqlite = { version = "0.28", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 tokio = { version = "1", features = ["macros", "rt", "sync", "time", "net"] }
-russh = "0.53"
+russh = "0.54"
 rand_core = "0.6"
 clap = { version = "4", features = ["derive"] }
